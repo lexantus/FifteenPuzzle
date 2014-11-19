@@ -1,4 +1,6 @@
 import flash.geom.Point;
+import kernel.events.Event;
+import caurina.transitions.*;
 /**
  * ...
  * @author Rozhin Alexey
@@ -16,15 +18,26 @@ class fifteen_box extends MovieClip
     private var _history_jumble:Array;
     private var _jumbled_cells:Array;
     
-    private var _n:Number = 100; // swap count
+    private var _swap_count:Number = 500; // swap count
     
     private var _empty_cell_point:Point;
     
+    private var SwapEmptyCellFunction:Function; 
+    private var OnCompleteCellMoveFunction:Function;
+    
     public function fifteen_box(assets:MovieClip)
     {
-        trace("fifteen_box: fifteen_box: ");
         fscommand("allowscale", "true");
-        InitBox(assets);
+        
+        try
+        {
+            InitBox(assets);
+        
+        }catch (e:Error)
+        {
+            _quad_matrix_size = 2;
+            InitBox(assets);
+        }
     }
     
     private function InitBox(assets:MovieClip): Void
@@ -34,8 +47,20 @@ class fifteen_box extends MovieClip
             throw new Error("Error: Invalid matrix size. See fifteen_box: InitBox");
         }
         
+        SwapEmptyCellFunction = FnA(this, SwapEmptyCell);
+        OnCompleteCellMoveFunction = FnA(this, OnCompleteCellMove);
+        
         InitStartMatrix(assets);
-        JumbleCells(_n);
+        JumbleCells(_swap_count);
+    }
+    
+    public static function FnA(target: Object, fn: Function, args: Array): Function
+    {
+        var result: Function = function(): Object
+        {
+            return fn.apply(target, arguments.concat(args));
+        };
+        return result;
     }
     
     private function InitStartMatrix(_assets:MovieClip): Void
@@ -72,6 +97,7 @@ class fifteen_box extends MovieClip
         }
         
         _ordered_cells[_quad_matrix_size - 1][_quad_matrix_size - 1] = null;
+        _cells_mc[_quad_matrix_size - 1][_quad_matrix_size - 1] = null;
     }
     
     private function JumbleCells(numSwaps:Number): Void
@@ -82,20 +108,51 @@ class fifteen_box extends MovieClip
             _empty_cell_point = new Point(_quad_matrix_size - 1, _quad_matrix_size - 1);
         }
         
-        var i:Number;
-        
-        for (i = 0; i < numSwaps; i++)
-        {
-            SwapEmptyCell();
-        }
+        SwapEmptyCellFunction(numSwaps);
     }
     
-    private function SwapEmptyCell(): Void
+    private function SwapEmptyCell(numSwaps:Number): Void
     {
+        trace('=============================');
+        trace(numSwaps);
+        
+        if (numSwaps == 0) return;
+        
         var cellPosToSwap:Point = FindSwapCellPosWithEmptiness();
-        var tempCell:MovieClip = _jumbled_cells[cellPosToSwap.x][cellPosToSwap.y];
+        var tempCellNumber:Number = _jumbled_cells[cellPosToSwap.x][cellPosToSwap.y];
+        
         _jumbled_cells[cellPosToSwap.x][cellPosToSwap.y] = _jumbled_cells[_empty_cell_point.x][_empty_cell_point.y];
-        _jumbled_cells[_empty_cell_point.x][_empty_cell_point.y] = tempCell;
+        _jumbled_cells[_empty_cell_point.x][_empty_cell_point.y] = tempCellNumber;
+        
+        _priviousEmptyCellPoint = _empty_cell_point;
+
+        ShowCellMove(cellPosToSwap, numSwaps, SwapEmptyCellFunction);
+    }
+    
+    private static var ANIMATION_DURATION:Number = 0.3;
+    
+    private function ShowCellMove(cellPosition:Point, numSwaps:Number, swapFunction:Function): Void
+    {
+        var mc:MovieClip = _cells_mc[cellPosition.x][cellPosition.y];
+        var emptyCoordX:Number = _empty_cell_point.y * TILE_WIDTH;
+        var emptyCoordY:Number = _empty_cell_point.x * TILE_HEIGHT;
+        
+        Tweener.addTween(mc, { _x: emptyCoordX,
+                               _y: emptyCoordY,
+                             time: ANIMATION_DURATION,
+                       transition:"linear",
+                       onComplete: OnCompleteCellMoveFunction,
+                       onCompleteParams:[cellPosition, numSwaps, swapFunction]} );
+    }
+    
+    private function OnCompleteCellMove(cellPosToSwap:Point, numSwaps:Number, SwapFunction:Function): Void
+    {
+        var tempTileMc:MovieClip = _cells_mc[cellPosToSwap.x][cellPosToSwap.y];
+        
+        _cells_mc[cellPosToSwap.x][cellPosToSwap.y] = _cells_mc[_empty_cell_point.x][_empty_cell_point.y];
+        _cells_mc[_empty_cell_point.x][_empty_cell_point.y] = tempTileMc;
+        
+        _empty_cell_point = cellPosToSwap;
         
         if (!_history_jumble)
         {
@@ -103,8 +160,10 @@ class fifteen_box extends MovieClip
         }
         
         _history_jumble.push([_empty_cell_point, cellPosToSwap]);
-        _empty_cell_point = cellPosToSwap;
+        SwapFunction(--numSwaps, _empty_cell_point);
     }
+    
+    private var _priviousEmptyCellPoint:Point;
     
     private function FindSwapCellPosWithEmptiness(): Point
     {
@@ -130,9 +189,34 @@ class fifteen_box extends MovieClip
             neighbors.push(new Point(_empty_cell_point.x, _empty_cell_point.y + 1));
         }
         
-        var numNeighbors:Number = neighbors.length;
-        var rndIndex:Number = Math.ceil(Math.random() * (numNeighbors - 1));
+        var rndIndex:Number = FindRandomIndex(neighbors.length);
+        
+        var regenerateRandomIndex:Boolean = neighbors[rndIndex].equals(_priviousEmptyCellPoint);
+                                            
+        
+        while (regenerateRandomIndex)
+        {
+            rndIndex = FindRandomIndex(neighbors.length);
+            regenerateRandomIndex = neighbors[rndIndex].equals(_priviousEmptyCellPoint);
+        }
         
         return neighbors[rndIndex];
+    }
+    
+    private function FindRandomIndex(arrayLength:Number): Number
+    {
+        var directionRand:Boolean = Math.random() > 0.5 ? true:false;
+        
+        var rndIndex:Number;
+        
+        if (directionRand)
+        {
+            rndIndex = Math.floor(Math.random() * (arrayLength - 1));
+        }else 
+        {
+            rndIndex = Math.ceil(Math.random() * (arrayLength - 1));
+        }
+        
+        return rndIndex;
     }
 }
