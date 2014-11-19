@@ -12,18 +12,21 @@ class fifteen_box extends MovieClip
     private static var TILE_HEIGHT:Number = 100;
     private var _cells_mc:Array;
     
-    private var _quad_matrix_size:Number = 10;
+    private var _quad_matrix_size:Number = 4;
     
     private var _ordered_cells:Array;
     private var _history_jumble:Array;
     private var _jumbled_cells:Array;
     
-    private var _swap_count:Number = 500; // swap count
+    private var _swap_count:Number = 20; // swap count
     
     private var _empty_cell_point:Point;
     
     private var SwapEmptyCellFunction:Function; 
+    private var SwapEmptyCellHistoryFunction:Function; 
     private var OnCompleteCellMoveFunction:Function;
+    
+    private var _isPlayingHistory:Boolean = false;
     
     public function fifteen_box(assets:MovieClip)
     {
@@ -48,6 +51,7 @@ class fifteen_box extends MovieClip
         }
         
         SwapEmptyCellFunction = FnA(this, SwapEmptyCell);
+        SwapEmptyCellHistoryFunction = FnA(this, SwapEmptyCellHistory);
         OnCompleteCellMoveFunction = FnA(this, OnCompleteCellMove);
         
         InitStartMatrix(assets);
@@ -113,10 +117,15 @@ class fifteen_box extends MovieClip
     
     private function SwapEmptyCell(numSwaps:Number): Void
     {
-        trace('=============================');
-        trace(numSwaps);
+        trace("swap: " + numSwaps);
         
-        if (numSwaps == 0) return;
+        if (numSwaps == 0)
+        {
+            // TODO
+            //_isPlayingHistory = true;
+            //SwapEmptyCellHistoryFunction(_swap_count);
+            return;
+        }
         
         var cellPosToSwap:Point = FindSwapCellPosWithEmptiness();
         var tempCellNumber:Number = _jumbled_cells[cellPosToSwap.x][cellPosToSwap.y];
@@ -127,6 +136,26 @@ class fifteen_box extends MovieClip
         _priviousEmptyCellPoint = _empty_cell_point;
 
         ShowCellMove(cellPosToSwap, numSwaps, SwapEmptyCellFunction);
+    }
+    
+    private function SwapEmptyCellHistory(numSwaps:Number):Void
+    {
+        trace("swap: " + numSwaps);
+        
+        if (numSwaps == 0) return;
+        
+        // TODO history
+        trace("_history_jumble = " + _history_jumble[numSwaps - 1].empty_pt);
+        var cellPosToSwap:Point = _history_jumble[numSwaps - 2].empty_pt;
+        
+        var tempCellNumber:Number = _jumbled_cells[cellPosToSwap.x][cellPosToSwap.y];
+        
+        _jumbled_cells[cellPosToSwap.x][cellPosToSwap.y] = _jumbled_cells[_empty_cell_point.x][_empty_cell_point.y];
+        _jumbled_cells[_empty_cell_point.x][_empty_cell_point.y] = tempCellNumber;
+        
+        _priviousEmptyCellPoint = _empty_cell_point;
+
+        ShowCellMove(cellPosToSwap, numSwaps, SwapEmptyCellHistoryFunction);
     }
     
     private static var ANIMATION_DURATION:Number = 0.3;
@@ -154,12 +183,18 @@ class fifteen_box extends MovieClip
         
         _empty_cell_point = cellPosToSwap;
         
-        if (!_history_jumble)
+        if (!_isPlayingHistory)
         {
-            _history_jumble = new Array;
+            if (!_history_jumble)
+            {
+                _history_jumble = new Array;
+            }
+            
+            var historyObj:Object = {empty_pt: _empty_cell_point};
+            
+            _history_jumble.push(historyObj);
         }
         
-        _history_jumble.push([_empty_cell_point, cellPosToSwap]);
         SwapFunction(--numSwaps, _empty_cell_point);
     }
     
@@ -192,7 +227,6 @@ class fifteen_box extends MovieClip
         var rndIndex:Number = FindRandomIndex(neighbors.length);
         
         var regenerateRandomIndex:Boolean = neighbors[rndIndex].equals(_priviousEmptyCellPoint);
-                                            
         
         while (regenerateRandomIndex)
         {
