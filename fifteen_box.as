@@ -8,17 +8,17 @@ import caurina.transitions.*;
 
 class fifteen_box extends MovieClip
 {
-    private static var TILE_WIDTH:Number = 100;
-    private static var TILE_HEIGHT:Number = 100;
+    private static var TILE_WIDTH:Number = 110;
+    private static var TILE_HEIGHT:Number = 110;
     private var _cells_mc:Array;
     
-    private var _quad_matrix_size:Number = 4;
+    private var _quad_matrix_size:Number = 5;
     
     private var _ordered_cells:Array;
     private var _history_jumble:Array;
     private var _jumbled_cells:Array;
     
-    private var _swap_count:Number = 20; // swap count
+    private var _swap_count:Number = 100;
     
     private var _empty_cell_point:Point;
     
@@ -117,13 +117,10 @@ class fifteen_box extends MovieClip
     
     private function SwapEmptyCell(numSwaps:Number): Void
     {
-        trace("swap: " + numSwaps);
-        
         if (numSwaps == 0)
         {
-            // TODO
-            //_isPlayingHistory = true;
-            //SwapEmptyCellHistoryFunction(_swap_count);
+            _isPlayingHistory = true;
+            SwapEmptyCellHistoryFunction(_swap_count);
             return;
         }
         
@@ -140,13 +137,9 @@ class fifteen_box extends MovieClip
     
     private function SwapEmptyCellHistory(numSwaps:Number):Void
     {
-        trace("swap: " + numSwaps);
+        if (numSwaps < 0) return;
         
-        if (numSwaps == 0) return;
-        
-        // TODO history
-        trace("_history_jumble = " + _history_jumble[numSwaps - 1].empty_pt);
-        var cellPosToSwap:Point = _history_jumble[numSwaps - 2].empty_pt;
+        var cellPosToSwap:Point = _history_jumble[numSwaps - 1].empty_pt;
         
         var tempCellNumber:Number = _jumbled_cells[cellPosToSwap.x][cellPosToSwap.y];
         
@@ -158,7 +151,7 @@ class fifteen_box extends MovieClip
         ShowCellMove(cellPosToSwap, numSwaps, SwapEmptyCellHistoryFunction);
     }
     
-    private static var ANIMATION_DURATION:Number = 0.3;
+    private static var ANIMATION_DURATION:Number = 0.1;
     
     private function ShowCellMove(cellPosition:Point, numSwaps:Number, swapFunction:Function): Void
     {
@@ -188,6 +181,7 @@ class fifteen_box extends MovieClip
             if (!_history_jumble)
             {
                 _history_jumble = new Array;
+                _history_jumble.push( { empty_pt: new Point(_quad_matrix_size - 1, _quad_matrix_size - 1) });
             }
             
             var historyObj:Object = {empty_pt: _empty_cell_point};
@@ -219,7 +213,7 @@ class fifteen_box extends MovieClip
             neighbors.push(new Point(_empty_cell_point.x + 1, _empty_cell_point.y));
         }
         
-          if (_empty_cell_point.y != (_quad_matrix_size - 1))
+        if (_empty_cell_point.y != (_quad_matrix_size - 1))
         {
             neighbors.push(new Point(_empty_cell_point.x, _empty_cell_point.y + 1));
         }
